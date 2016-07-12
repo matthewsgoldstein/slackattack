@@ -16,65 +16,82 @@ const controller = botkit.slackbot({
 
 console.log('starting bot');
 
-controller.hears(['food', 'hungry', 'breakfast', 'lunch', 'dinner'], 'direct_message,direct_mention,mention', (bot, message) => {
-  bot.startConversation(message, (err, convo) => {
-    if (!err) {
-      convo.say('Hey there!');
-      convo.ask('Would you like to order food?', [
-        {
-          pattern: ['yes', 'yeah', 'sure', 'y', 'ok', 'okay'],
-          callback(response, convoTwo) {
-            convo.ask('What kind of food would you like to order?', (responseTwo, convoThree) => {
-              convo.ask(`You want to order ${response.text}?`, [
-                {
-                  pattern: ['yes', 'yeah', 'sure', 'y', 'ok', 'okay'],
-                  callback(responseThree, convoFour) {
-                    convo.ask('What city are you in?', (responseFour, convoFive) => {
-                      convo.ask(`You're in ${response.text}?`, [
-                        {
-                          pattern: ['yes', 'yeah', 'sure', 'y', 'ok', 'okay'],
-                          callback(responseFive, convoSix) {
-                            convo.say('Alright, getting results now!');
-
-
-                            convo.next();
-                          },
-                        },
-                        {
-                          pattern: ['no', 'nah', 'no thanks'],
-                          callback(responseFive, convoSix) {
-                            convo.say('Okay!');
-                            convo.stop();
-                          },
-                        },
-                      ]);
-                    });
-                    convo.next();
-                  },
-                },
-                {
-                  pattern: ['no', 'nah', 'no thanks'],
-                  callback(responseThree, convoFour) {
-                    convo.say('Okay!');
-                    convo.stop();
-                  },
-                },
-              ]);
-            });
-            convo.next();
+/* THE FOLLOWING CODE USES PIECES FROM https://github.com/howdyai/botkit/blob/master/examples/convo_bot.js,
+FROM https://github.com/olalonde/node-yelp, AND ALSO USES PIECES DERIVED FROM DISCUSSIONS WITH MANMEET GUJRAL*/
+controller.hears(['food', 'hungry', 'breakfast', 'lunch', 'dinner'],
+['direct_message', 'direct_mention', 'mention'], (bot, message) => {
+  const getYelpResults = (response, convo, businesses) => {
+    if (businesses.length > 0) {
+      const yelpResults = {
+        text: `${businesses[0].name}'s Rating: ${businesses[0].rating}`,
+        attachments: [
+          {
+            title: `${businesses[0].name}`,
+            image_url: businesses[0].image_url,
+            text: businesses[0].snippet_text,
+            color: '#336699',
           },
-        },
-        {
-          pattern: ['no', 'nah', 'no thanks'],
-          callback(response, convoTwo) {
-            convo.say('Okay!');
-            convo.stop();
-          },
-        },
-      ]);
+        ],
+      };
+      bot.reply(message, yelpResults);
+      convo.next();
+    } else {
+      convo.say('Oops! There are no results!');
     }
-  });
+  };
+
+  const findFood = (response, convo, foodType) => {
+    yelp.search({ term: foodType, location: response.text, sort: 1 })
+    .then(data => {
+      getYelpResults(response, convo, data.businesses);
+      convo.next();
+    })
+    .catch(err => {
+      convo.say('Oops! Looks like I messed up. Try typing \'food\' again!');
+      convo.next();
+    });
+  };
+
+  const askWhere = (response, convo, foodType) => {
+    convo.ask('Which city are you in?', (responseNew, convoNew, foodTypeNew) => {
+      convo.next();
+      findFood(responseNew, convoNew, response.text);
+      convo.next();
+    });
+  };
+
+  const askType = (response, convo) => {
+    convo.ask('What kind of food would you like?', (responseNew, convoNew) => {
+      convo.next();
+      askWhere(responseNew, convoNew);
+      convo.next();
+    });
+  };
+
+  const askIf = (response, convo) => {
+    convo.ask('Would you like to order food?', [
+      {
+        pattern: bot.utterances.yes,
+        callback: (responseNew, convoNew) => {
+          convo.next();
+          askType(responseNew, convoNew);
+          convo.next();
+        },
+      },
+      {
+        pattern: bot.utterances.no,
+        callback: (responseNew, convoNew) => {
+          convo.say('Okay!');
+          convo.next();
+        },
+      },
+    ]);
+  };
+
+  bot.startConversation(message, askIf);
 });
+/* THE PREVIOUS CODE USES PIECES FROM https://github.com/howdyai/botkit/blob/master/examples/convo_bot.js,
+FROM https://github.com/olalonde/node-yelp, AND ALSO USES PIECES DERIVED FROM DISCUSSIONS WITH MANMEET GUJRAL*/
 
 
 // initialize slackbot
@@ -108,15 +125,6 @@ controller.hears(['who am i', 'what is my name'], ['direct_message', 'direct_men
     }
   });
 });
-
-controller.on('user_typing', (bot, message) => {
-  bot.api.users.info({ user: message.user }, (err, res) => {
-    if (res) {
-      bot.reply(message, `${res.user.name} is typing!`);
-    }
-  });
-});
-
 
 // data.businesses.forEach(business => {
 //
