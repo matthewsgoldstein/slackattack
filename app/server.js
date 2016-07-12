@@ -1,6 +1,6 @@
 // example bot
 import botkit from 'botkit';
-const Yelp = require('yelp');
+import Yelp from 'yelp';
 
 const yelp = new Yelp({
   consumer_key: 'IM0YqSvvXsfxfVk_J84yCQ',
@@ -13,8 +13,6 @@ const yelp = new Yelp({
 const controller = botkit.slackbot({
   debug: false,
 });
-
-console.log('starting bot');
 
 /* THE FOLLOWING CODE USES PIECES FROM https://github.com/howdyai/botkit/blob/master/examples/convo_bot.js,
 FROM https://github.com/olalonde/node-yelp, AND ALSO USES PIECES DERIVED FROM DISCUSSIONS WITH MANMEET GUJRAL*/
@@ -126,6 +124,39 @@ controller.hears(['who am i', 'what is my name'], ['direct_message', 'direct_men
   });
 });
 
+// FOLLOWING CODE FROM ASSIGNMENT README
 controller.on('botmot wake up!', (bot, message) => {
   bot.replyPublic(message, 'yeah yeah');
+});
+// PRECEDING CODE FROM ASSIGNMENT README
+
+// FOLLOWING CODE ADAPTED FROM https://github.com/howdyai/botkit#botreply
+controller.hears('send a gif', 'direct_message,direct_mention', (bot, message) => {
+  const attachmentReply = {
+    username: 'botmot',
+    attachments: [
+      {
+        fallback: 'It\'s a gif, I swear.',
+        title: 'Here\'s your gif!',
+        text: 'http://gph.is/1rNJcXo',
+        color: '#7CD197',
+      },
+    ],
+  };
+
+  bot.reply(message, attachmentReply);
+});
+// PRECEDING CODE ADAPTED FROM https://github.com/howdyai/botkit#botreply
+
+controller.hears(['^((?!send a gif|botmot wake up!|who am i|what is my name|hi|howdy|hello|food|hungry|breakfast|lunch|dinner|help).)*$'],
+['direct_message', 'direct_mention', 'mention'], (bot, message) => {
+  bot.reply(message, 'I have no clue what you\'re saying! Type \'help\' to check out my functions ;)');
+});
+
+controller.hears(['help'], ['direct_message', 'direct_mention', 'mention'], (bot, message) => {
+  bot.reply(message, 'Type \'hi\', \'hello\', or \'howdy\' to make me say hey!');
+  bot.reply(message, 'Type \'who am i\' or \'what is my name\' to make me remind you of who you are!');
+  bot.reply(message, 'Type \'send a gif\' to make me send you a gif!');
+  bot.reply(message, 'Type \'botmot wake up!\' to rouse me from my slumber!');
+  bot.reply(message, 'Type \'food\', \'hungry\', \'breakfast\', \'lunch\', or \'dinner\' to search for some food!');
 });
