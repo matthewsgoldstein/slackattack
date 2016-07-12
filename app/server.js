@@ -126,6 +126,6 @@ controller.hears(['who am i', 'what is my name'], ['direct_message', 'direct_men
   });
 });
 
-// data.businesses.forEach(business => {
-//
-// });
+controller.on('botmot wake up!', (bot, message) => {
+  bot.replyPublic(message, 'yeah yeah');
+});
